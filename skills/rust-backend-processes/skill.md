@@ -1,7 +1,7 @@
 ---
 name: rust-backend-processes
 description:
-  Build robust Rust backend processes with retry logic, status reporting, and graceful shutdown handling. Use when
+  Build robust Rust backend processes with retry logic, progress reporting, and graceful shutdown handling. Use when
   implementing long-running services, workers, or background processes requiring resilience and observability.
 ---
 
@@ -12,6 +12,7 @@ description:
 **Signal handling**: Use `tokio::signal` to handle SIGTERM, SIGINT.
 
 **Shutdown pattern**:
+
 - Receive shutdown signal
 - Stop accepting new work
 - Complete in-flight operations (with timeout)
@@ -58,35 +59,93 @@ description:
 
 **Fast failure**: Return immediately when circuit is open instead of waiting for timeout.
 
-## Status Reporting
+## Progress Reporting
 
-**Health endpoint**: HTTP `/health` endpoint returning service status.
+**Persist progress to database**: Track long-running job state in MongoDB, Firestore, or Redis.
 
-**Health checks**:
-- Liveness: Is process running?
-- Readiness: Can process accept traffic?
-- Startup: Has process finished initialization?
+**Job state machine**: Pending → Running → Completed/Failed
 
-**Dependencies**: Check critical dependencies (database, cache, message queue).
+**Atomic updates**: Use database atomic operations to prevent race conditions.
 
-**Fail fast**: Return 503 if critical dependency is down.
+**Progress tracking**:
 
-**Metrics endpoint**: `/metrics` for Prometheus scraping.
+- Current step/phase
+- Percentage complete
+- Items processed/total
+- Start time, last updated
+- Error count, retry count
+
+**Status document pattern**:
+
+```rust
+struct JobStatus {
+    id: String,
+    state: JobState,  // Pending, Running, Completed, Failed
+    progress: f32,    // 0.0 to 1.0
+    current_step: String,
+    error_message: Option<String>,
+    started_at: DateTime,
+    updated_at: DateTime,
+    completed_at: Option<DateTime>,
+}
+```
+
+**Update frequency**: Balance between freshness and database load. Update every N items or every X seconds.
+
+**MongoDB**: Use `updateOne` with `$set` for atomic progress updates.
+
+**Firestore**: Use transactions or atomic field updates.
+
+**Redis**: Use hashes for job state, `HSET` for updates. Set TTL for auto-cleanup.
+
+**Heartbeat**: Update `updated_at` periodically to show process is alive.
+
+## State Transitions
+
+**Atomic state changes**: Use compare-and-swap or transactions for state transitions.
+
+**Valid transitions**:
+
+- Pending → Running (claim job)
+- Running → Completed (success)
+- Running → Failed (permanent failure)
+- Running → Pending (transient failure, retry)
+
+**Claim job pattern** (MongoDB):
+
+```rust
+// Atomically claim pending job
+db.find_one_and_update(
+    { state: "Pending", claimed_at: { $lt: stale_threshold } },
+    { $set: { state: "Running", claimed_at: now() } }
+)
+```
+
+**On success**: Update to Completed, set `completed_at`, clear errors.
+
+**On failure**: Update to Failed, set `error_message`, increment `retry_count`.
+
+**On retry**: Reset to Pending if retry count below max, otherwise Failed.
+
+**Idempotency key**: Store operation ID to prevent duplicate processing.
 
 ## Process Lifecycle
 
 **Initialization phase**:
+
 - Load configuration
 - Connect to dependencies
 - Verify connectivity
 - Fail if critical resources unavailable
 
 **Running phase**:
+
 - Accept and process work
 - Monitor health
 - Report metrics
 
 **Shutdown phase**:
+
 - Stop accepting new work
 - Drain existing work
 - Close connections
@@ -205,6 +264,7 @@ description:
 ## Common Patterns
 
 **Retry with backoff**:
+
 ```rust
 use backoff::{ExponentialBackoff, retry};
 
@@ -220,6 +280,7 @@ retry(ExponentialBackoff::default(), || {
 ```
 
 **Graceful shutdown**:
+
 ```rust
 use tokio::signal;
 use tokio_util::sync::CancellationToken;
@@ -238,11 +299,23 @@ while !token.is_cancelled() {
 }
 ```
 
-**Health check**:
+**Progress reporting**:
+
 ```rust
-async fn health_check() -> Result<(), Error> {
-    database.ping().await?;
-    cache.ping().await?;
+async fn update_progress(
+    db: &Database,
+    job_id: &str,
+    progress: f32,
+    step: &str
+) -> Result<()> {
+    db.collection("jobs").update_one(
+        doc! { "_id": job_id },
+        doc! { "$set": {
+            "progress": progress,
+            "current_step": step,
+            "updated_at": DateTime::now()
+        }}
+    ).await?;
     Ok(())
 }
 ```
@@ -250,16 +323,18 @@ async fn health_check() -> Result<(), Error> {
 ## Best Practices
 
 **Do**:
+
 - Implement graceful shutdown
 - Use exponential backoff with jitter
 - Classify errors as retryable or not
 - Set timeouts on all operations
-- Export metrics and health endpoints
+- Persist progress to database with atomic updates
 - Use structured logging with tracing
 - Validate config at startup
 - Handle backpressure explicitly
 
 **Avoid**:
+
 - Unbounded retries
 - No timeout on operations
 - Ignoring shutdown signals
