@@ -160,17 +160,9 @@ Include links to related resources and available actions. Makes API discoverable
 
 ## Security
 
-**HTTPS only**: Enforce TLS for all endpoints
+**See rest-api-security skill**: Comprehensive coverage of authentication, authorization, rate limiting, bot prevention, and attack mitigation.
 
-**Authentication**: Use OAuth 2.0 or JWT in Authorization header
-
-**Rate limiting**: Prevent abuse. Return 429 with Retry-After header
-
-**CORS**: Configure carefully. Avoid wildcard origins in production
-
-**Input validation**: Validate all inputs. Reject unexpected fields in strict mode
-
-**No sensitive data in URLs**: Passwords, tokens belong in headers or body
+**Essential**: HTTPS only, input validation, proper error handling without exposing internals.
 
 ## API Documentation
 
