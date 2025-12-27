@@ -1,6 +1,8 @@
 ---
 name: rest-api-development
-description: Design and develop standards-based, semantic REST APIs following HTTP specifications and best practices. Use when building RESTful APIs that are discoverable, consistent, and follow REST architectural constraints.
+description:
+  Design and develop standards-based, semantic REST APIs following HTTP specifications and best practices. Use when
+  building RESTful APIs that are discoverable, consistent, and follow REST architectural constraints.
 ---
 
 # REST API Development
@@ -11,7 +13,8 @@ APIs model resources, not actions. Resources are nouns, not verbs. Use plural no
 
 **Resource hierarchy**: Reflect relationships in URI structure. Limit nesting to 2-3 levels maximum.
 
-**Granularity**: Design resources at appropriate level. Too fine-grained increases chattiness, too coarse reduces flexibility.
+**Granularity**: Design resources at appropriate level. Too fine-grained increases chattiness, too coarse reduces
+flexibility.
 
 ## Semantic HTTP Methods
 
@@ -36,15 +39,18 @@ Use HTTP methods according to their defined semantics:
 Use status codes that accurately convey response meaning:
 
 **2xx Success**:
+
 - 200 OK: Successful GET, PUT, PATCH, or DELETE with body
 - 201 Created: Successful POST creating resource
 - 204 No Content: Successful request with no response body
 
 **3xx Redirection**:
+
 - 301 Moved Permanently: Resource permanently relocated
 - 304 Not Modified: Cached version is current
 
 **4xx Client Errors**:
+
 - 400 Bad Request: Malformed request syntax
 - 401 Unauthorized: Authentication required or failed
 - 403 Forbidden: Authenticated but not authorized
@@ -54,6 +60,7 @@ Use status codes that accurately convey response meaning:
 - 429 Too Many Requests: Rate limit exceeded
 
 **5xx Server Errors**:
+
 - 500 Internal Server Error: Unexpected server condition
 - 503 Service Unavailable: Temporary overload or maintenance
 
@@ -81,7 +88,8 @@ Use status codes that accurately convey response meaning:
 
 **ISO 8601 for dates**: `2025-12-27T10:30:00Z` with timezone
 
-**Envelope only when necessary**: Return resource directly, not wrapped in envelope, unless pagination or metadata required.
+**Envelope only when necessary**: Return resource directly, not wrapped in envelope, unless pagination or metadata
+required.
 
 **Null vs omission**: Decide convention. Generally omit null values for cleaner responses.
 
@@ -90,6 +98,7 @@ Use status codes that accurately convey response meaning:
 Use consistent error format across all endpoints:
 
 **Include**:
+
 - HTTP status code
 - Machine-readable error code
 - Human-readable message
@@ -106,6 +115,7 @@ Use consistent error format across all endpoints:
 **Offset-based for small datasets**: Simpler, allows jumping to pages
 
 **Include in response**:
+
 - Total count (when feasible)
 - Links to next/previous pages
 - Current page metadata
@@ -160,7 +170,8 @@ Include links to related resources and available actions. Makes API discoverable
 
 ## Security
 
-**See rest-api-security skill**: Comprehensive coverage of authentication, authorization, rate limiting, bot prevention, and attack mitigation.
+**See rest-api-security skill**: Comprehensive coverage of authentication, authorization, rate limiting, bot prevention,
+and attack mitigation.
 
 **Essential**: HTTPS only, input validation, proper error handling without exposing internals.
 

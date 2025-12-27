@@ -1,8 +1,8 @@
 ---
 name: rest-api-security
 description:
-  Secure REST APIs against common attacks with authentication, authorization, rate limiting, and bot prevention. Use when
-  implementing API security controls for production services.
+  Secure REST APIs against common attacks with authentication, authorization, rate limiting, and bot prevention. Use
+  when implementing API security controls for production services.
 ---
 
 # REST API Security
@@ -210,6 +210,7 @@ description:
 ## Best Practices
 
 **Do**:
+
 - Enforce HTTPS everywhere
 - Validate all inputs with whitelist approach
 - Use short-lived tokens with proper scopes
@@ -220,6 +221,7 @@ description:
 - Log security events for audit
 
 **Avoid**:
+
 - Exposing stack traces or internal errors
 - Trusting client-side validation
 - Using API keys in frontend code
