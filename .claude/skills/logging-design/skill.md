@@ -9,23 +9,24 @@ description:
 
 ## Structured Logging
 
-Use structured formats (JSON) with consistent fields. Makes logs machine-readable and searchable.
+Use structured formats (JSON) with consistent fields. Makes logs machine-readable and searchable. Follow Elastic Common Schema (ECS) field names for observability platform compatibility.
 
 **Every log entry must include**:
 
-- `timestamp`: ISO 8601 with timezone
-- `level`: Severity level
+- `@timestamp`: ISO 8601 with timezone (ECS standard)
+- `log.level`: Severity level (use: trace, debug, info, warn, error, fatal)
 - `message`: Human-readable description
-- `service`: Service name
-- `request_id`: Correlation ID
+- `service.name`: Service identifier
+- `trace.id`: Correlation ID for distributed tracing
 
 **Add context as separate fields, not in message string**:
 
-- `user_id`, `session_id`, `tenant_id`
-- `operation`, `duration_ms`
-- `error_code`, `stack_trace`
+- `user.id`, `session.id`, `organization.id`
+- `event.action`, `event.duration` (nanoseconds)
+- `error.code`, `error.stack_trace`, `error.type`
+- `http.request.method`, `http.response.status_code`, `url.path`
 
-**Good**: `log.info("User login", {user_id: "123", method: "oauth"})`
+**Good**: `log.info("User login", {user: {id: "123"}, event: {action: "user-login"}, method: "oauth"})`
 
 **Bad**: `log.info("User 123 login via oauth")`
 
@@ -73,11 +74,11 @@ Use structured formats (JSON) with consistent fields. Makes logs machine-readabl
 
 ## Context and Correlation
 
-**Generate request ID at entry point**: Propagate through entire request lifecycle. Include in all logs.
+**Generate trace ID at entry point**: Propagate through entire request lifecycle. Include in all logs as `trace.id`.
 
-**Propagate context**: Pass request_id, user_id, trace_id through function calls and async operations.
+**Propagate context**: Pass `trace.id`, `user.id`, `span.id` through function calls and async operations.
 
-**Log at boundaries**: Service entry/exit, external API calls, database operations.
+**Log at boundaries**: Service entry/exit, external API calls, database operations. Use `event.action` to identify boundary events.
 
 ## Performance
 
@@ -93,13 +94,14 @@ Use structured formats (JSON) with consistent fields. Makes logs machine-readabl
 
 **Include full context**:
 
-- Exception type and message
-- Complete stack trace
-- Request details that triggered error
-- User context (sanitized)
-- What was attempted and why it failed
+- `error.type`: Exception class name
+- `error.message`: Exception message
+- `error.stack_trace`: Complete stack trace
+- `http.*`: Request details that triggered error
+- `user.id`: User context (sanitized)
+- `event.action`: What was attempted
 
-**Use error codes**: Unique identifiers for error categories. Makes searching and monitoring easier.
+**Use error codes**: Set `error.code` with unique identifiers for error categories. Makes searching and monitoring easier.
 
 **Log once per error**: Catch and log at appropriate level. Don't re-log as error bubbles up.
 
