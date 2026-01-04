@@ -1,105 +1,75 @@
 ---
 name: service-observability
 description:
-  Set up production observability using SigNoz with OpenTelemetry. Use when implementing centralized
-  logging, tracing, and metrics infrastructure. Focuses on Docker configuration and OpenTelemetry integration.
+  Set up production observability using Google Cloud Ops Agent and Cloud Logging/Monitoring.
+  Focuses on VM/Container configuration and Google Cloud Platform integration.
 ---
 
-# Service Observability with SigNoz
+# Service Observability (Google Cloud)
 
-## OpenTelemetry Architecture
+## Architecture
 
-- Deploy OpenTelemetry Collector as sidecar or centralized service
-- Applications instrument with OpenTelemetry SDK and export OTLP protocol
-- OTel Collector receives traces, logs, and metrics on port 4317 (gRPC) and 4318 (HTTP)
-- SigNoz backend stores telemetry data in ClickHouse (logs, traces) and query service
-- SigNoz frontend UI connects to query service on port 8080
-- Services use shared Docker network, remain decoupled from observability infrastructure
+- **Data Collection**: Google Cloud Ops Agent (for Compute Engine) or Fluent Bit (GKE default) collects logs and metrics.
+- **Transport**: Agents send data to Cloud Logging API and Cloud Monitoring API.
+- **Storage & Analysis**: Data stored in Google Cloud Logging buckets and Monarch (monitoring DB).
+- **Visualization**: Google Cloud Console (Logs Explorer, Metrics Explorer, Dashboards).
 
-## Docker Compose Structure
+## Google Cloud Ops Agent (Compute Engine)
 
-- SigNoz ClickHouse: Data storage for logs and traces, expose 9000, 8123, named volume `signoz-clickhouse-data`
-- SigNoz Query Service: Aggregates and queries data, environment `ClickHouseUrl=tcp://clickhouse:9000`, expose 8080
-- SigNoz OTel Collector: Receives OTLP telemetry, expose 4317 (gRPC), 4318 (HTTP), mount otel-collector-config.yaml
-- SigNoz Frontend: UI dashboard, environment `FRONTEND_API_ENDPOINT=http://query-service:8080`, expose 3301
-- Application service: Environment `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317`, `SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES=service.name=<name>`
-- Health checks: ClickHouse `wget --spider -q localhost:8123/ping`, query service curl `:8080/api/v1/health`
-- Depends_on with health conditions: Query service waits for ClickHouse, frontend and collector wait for query service
-- Named volumes: ClickHouse data, OTel Collector data
-- Network: Bridge driver for all services
+- **Installation**: Install `google-cloud-ops-agent` package on Linux/Windows VMs.
+- **Configuration File**: `/etc/google-cloud-ops-agent/config.yaml` (Linux) or `%ProgramFiles%\Google\Cloud Operations\Ops Agent\config\config.yaml` (Windows).
+- **Unified Agent**: Combines logging (Fluent Bit based) and metrics (OpenTelemetry Collector based) into one binary.
 
-## OpenTelemetry Collector Configuration
+## Logging Configuration (Ops Agent)
 
-- Receivers: `otlp` protocol on gRPC `:4317` and HTTP `:4318`
-- Receivers: `hostmetrics` for system metrics (cpu, memory, disk, network)
-- Processors: `batch` with timeout 1s and batch size 1024 for efficient export
-- Processors: `memory_limiter` with check interval 1s, limit 512MB, spike limit 128MB
-- Processors: `resource` to add deployment environment attributes
-- Processors: `attributes` to filter or add custom attributes
-- Exporters: `otlp` to SigNoz backend `query-service:4317` with compression gzip
-- Exporters: `logging` for debugging (disable in production)
-- Service pipelines: traces, metrics, logs all flow through batch processor to otlp exporter
-- Extensions: `health_check` on :13133, `pprof` on :1777, `zpages` on :55679
+- **Receivers**: Define sources.
+    - `files`: Tail log files (e.g., `/var/log/app.log`).
+    - `syslog`: Read from system syslog.
+    - `tcp` / `udp`: Listen on network ports for JSON/Syslog streams.
+- **Processors**: Parse and modify logs.
+    - `parse_json`: Parse JSON strings into structured payloads.
+    - `parse_regex`: Extract fields from text logs.
+- **Service pipelines**: Connect receivers -> processors -> default_pipeline (Cloud Logging).
+
+**Example Config Approach**: Define a `files` receiver for your log path, a `parse_json` processor for timestamp parsing, and link them in a service pipeline.
+
+## Metrics Configuration (Ops Agent)
+
+- **Receivers**:
+    - `hostmetrics`: CPU, Memory, Disk, Network (enabled by default).
+    - `prometheus`: Scrape Prometheus endpoints.
+    - `otlp`: Receive OTLP metrics (gRPC/HTTP).
+- **Service pipelines**: Connect receivers -> default_pipeline (Cloud Monitoring).
 
 ## Application Instrumentation Requirements
 
-- Integrate OpenTelemetry SDK for your language (JS, Python, Java, Go, Rust, etc.)
-- Configure OTLP exporter with endpoint `http://otel-collector:4317` (gRPC) or `:4318` (HTTP)
-- Required resource attributes: `service.name`, `service.version`, `deployment.environment`
-- Logs: Use OpenTelemetry Logs API with `timestamp`, `severity_text`, `severity_number`, `body`, `trace_id`, `span_id`
-- Traces: Auto-instrument HTTP, database, RPC calls or manually create spans for business operations
-- Metrics: Export runtime metrics (CPU, memory, GC) and custom business metrics
-- Context propagation: Use W3C Trace Context headers for distributed tracing across services
-- Log correlation: Ensure logs include `trace_id` and `span_id` from active span context
-
-## SigNoz Data Retention Configuration
-
-- ClickHouse TTL settings for automatic data cleanup
-- Traces table: TTL after 15 days (configurable via `RETENTION_PERIOD` in query service)
-- Logs table: TTL after 7 days for high volume, 30 days for errors/warnings
-- Metrics table: Raw metrics 7 days, aggregated metrics 90 days
-- Configure via ClickHouse SQL: `ALTER TABLE signoz_traces.signoz_index_v2 MODIFY TTL toDateTime(timestamp) + INTERVAL 15 DAY`
-- Set retention policies in SigNoz UI: Settings → Retention → Configure per signal type
-- Use sampling for high-volume traces: Configure in OTel Collector with `probabilistic_sampler` processor
+- **Logs**:
+    - Output structured JSON to `stdout` / `stderr` (for GKE/Container-Optimized OS) or a specific file (for plain VMs).
+    - Follow `logging-design` skill for field names (`severity`, `httpRequest`, etc.).
+- **Metrics**:
+    - Use Google Cloud Client Libraries or OpenTelemetry SDK.
+    - If using OpenTelemetry, configure the OTLP exporter to send to the Ops Agent (local) or directly to Google Cloud (requires auth).
+- **Tracing**:
+    - Use Cloud Trace libraries or OpenTelemetry with Cloud Trace exporter.
+    - Ensure `X-Cloud-Trace-Context` header support for propagation.
 
 ## Verification
 
-- SigNoz UI: Access at `http://localhost:3301`, verify services appear in Services tab
-- Query service health: GET `http://localhost:8080/api/v1/health` returns healthy status
-- OTel Collector metrics: Access zpages at `http://localhost:55679/debug/tracez` to see received spans
-- View traces: SigNoz UI → Traces tab shows distributed traces with service topology
-- View logs: SigNoz UI → Logs tab shows structured logs with trace correlation
-- Check metrics: SigNoz UI → Metrics tab shows service metrics and custom metrics
-- Verify correlation: Click trace in UI, see linked logs with matching `trace_id`
+- **Logs Explorer**:
+    - Check "Resource" filters (e.g., VM Instance, Kubernetes Container).
+    - Verify JSON payloads are parsed (expandable objects, not just text strings).
+    - Check for `severity` icons matching the log level.
+- **Metrics Explorer**:
+    - Verify `agent.googleapis.com` metrics (host health).
+    - Verify custom metrics (e.g., `workload.googleapis.com`).
+- **Agent Status**:
+    - Linux: `sudo service google-cloud-ops-agent status`.
+    - Log file: `/var/log/google-cloud-ops-agent/subagents/logging-module.log`.
 
-## Multi-Service Scaling
+## Best Practices
 
-- Each service integrates OpenTelemetry SDK with unique `service.name` resource attribute
-- Single centralized OTel Collector can handle multiple services (recommended for simplicity)
-- Alternative: Deploy sidecar OTel Collector per service for isolation and network efficiency
-- All services export to same OTel Collector endpoint (centralized) or local sidecar
-- SigNoz automatically groups telemetry by `service.name` attribute
-- Use service map in SigNoz UI to visualize cross-service dependencies
-- Configure sampling per service using tail-based sampling in OTel Collector
-
-## Production Configuration
-
-- ClickHouse memory: Allocate 4-8GB for small deployments, 16-32GB for production scale
-- Use persistent volumes for ClickHouse data and OTel Collector buffer
-- Set application instrumentation to sample traces: 100% for low traffic, 10-20% for high traffic
-- Configure OTel Collector `memory_limiter` processor to prevent OOM conditions
-- Enable TLS for OTLP endpoints if network-exposed: Configure certificates in OTel Collector
-- Use separate SigNoz deployments for production and non-production environments
-- Configure alerting rules in SigNoz UI for error rates, latency spikes, service downtime
-- Enable authentication in SigNoz: Set `SIGNOZ_ADMIN_PASSWORD` environment variable
-- Resource limits: OTel Collector 512MB-2GB memory, ClickHouse 8-32GB memory, Query service 2-4GB memory
-
-## Troubleshooting
-
-- No data in SigNoz: Check OTel Collector logs for export errors, verify app OTLP endpoint configuration
-- Traces missing: Ensure OpenTelemetry SDK initialized with tracer provider, check sampling configuration
-- Logs not correlated: Verify `trace_id` and `span_id` included in log records, use OTel Logs Bridge API
-- High cardinality errors: Reduce unique attribute combinations, use aggregation in OTel Collector processors
-- OTel Collector crash: Check `memory_limiter` settings, verify ClickHouse connectivity, review collector logs
-- Missing spans: Check for instrumentation gaps, verify context propagation across async boundaries
-- ClickHouse disk full: Verify TTL policies active, manually drop old partitions, increase disk or reduce retention
+- **Metadata**: Rely on the agent to attach resource metadata (instance ID, zone, project ID). Do not manually log these unless necessary for app logic.
+- **Cost Management**:
+    - Exclude debug logs in production via agent config `exclude_logs` processor.
+    - Use Log Sinks to export high-volume logs to BigQuery or Cloud Storage for long-term retention/analysis instead of keeping them in hot storage.
+- **Alerting**: Create Log-based Alerts for specific error patterns (e.g., "Payment Failed") directly in Cloud Logging.

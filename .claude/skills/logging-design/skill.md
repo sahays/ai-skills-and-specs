@@ -2,129 +2,77 @@
 name: logging-design
 description:
   Design effective application logging from a software engineering perspective. Use when implementing logging in code,
-  choosing log levels, or defining what to log. Focuses on structured logging with OpenTelemetry standards for SigNoz.
+  choosing log levels, or defining what to log. Focuses on structured logging with Google Cloud Logging standards.
 ---
 
-# Logging Design for Engineers
+# Logging Design for Engineers (Google Cloud)
 
-## Structured Logging
+## Structured Logging (JSON)
 
-Use structured formats (JSON) with consistent fields. Makes logs machine-readable and searchable. Follow OpenTelemetry semantic conventions for compatibility with SigNoz and other observability platforms.
+Use JSON format for all logs to ensure they are parsed correctly by Google Cloud Logging (formerly Stackdriver).
 
-**Every log entry must include**:
+**Required Fields**:
 
-- `timestamp`: Unix nanoseconds or ISO 8601 with timezone (OpenTelemetry standard)
-- `severity_text`: Severity level (use: TRACE, DEBUG, INFO, WARN, ERROR, FATAL)
-- `severity_number`: Numeric severity (1=TRACE, 5=DEBUG, 9=INFO, 13=WARN, 17=ERROR, 21=FATAL)
-- `body`: Human-readable log message
-- `resource.service.name`: Service identifier
-- `trace_id`: 16-byte trace ID (32 hex chars) for distributed tracing
-- `span_id`: 8-byte span ID (16 hex chars) for current operation
+- `severity`: String (DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY)
+- `message`: Human-readable log message (mapped to `jsonPayload.message` or top-level `textPayload` if not JSON)
+- `timestamp`: RFC 3339 format (optional, Cloud Logging adds receive time if missing, but generation time is preferred)
 
-**Add context as separate attributes, not in body string**:
+**Special Google Cloud Fields**:
 
-- `user.id`, `session.id`, `enduser.id`
-- `http.method`, `http.status_code`, `http.route`, `http.target`
-- `db.system`, `db.operation`, `db.statement`
-- `rpc.service`, `rpc.method`
-- `exception.type`, `exception.message`, `exception.stacktrace`
-- `code.function`, `code.namespace`, `code.filepath`, `code.lineno`
+- `httpRequest`: Object containing request details (method, URL, status, userAgent, latency). Enables correlating logs with load balancer logs.
+- `logging.googleapis.com/trace`: Resource name of the trace associated with the log entry (`projects/[PROJECT_ID]/traces/[TRACE_ID]`).
+- `logging.googleapis.com/spanId`: The span ID within the trace.
+- `logging.googleapis.com/sourceLocation`: Object with `file`, `line`, `function` for debugging.
+- `logging.googleapis.com/labels`: key-value map for indexing and filtering (e.g., `{"env": "prod", "version": "1.2.3"}`).
 
-**Good**: `log.info("User login", {attributes: {"user.id": "123", "http.method": "POST", "enduser.id": "user-123"}})`
+**Good**: JSON object with severity, message, and labels.
 
-**Bad**: `log.info("User 123 login via oauth")`
+**Bad**: Plain text message with embedded IDs (harder to query).
 
-## Log Levels
+## Log Levels (Google Cloud Standard)
 
-**TRACE**: Step-by-step execution. Development only. High volume.
+- **DEBUG**: Debug or trace information. High volume.
+- **INFO**: Routine information, such as ongoing status or performance.
+- **NOTICE**: Normal but significant events, such as start up, shut down, or a configuration change.
+- **WARNING**: Warning events might cause problems.
+- **ERROR**: Error events are likely to cause problems.
+- **CRITICAL**: Critical events cause more severe problems or outages.
+- **ALERT**: A person must take an action immediately.
+- **EMERGENCY**: One or more systems are unusable.
 
-**DEBUG**: Detailed diagnostics. Development and troubleshooting only.
-
-**INFO**: Normal operations. Default for production. Application lifecycle, business events.
-
-**WARN**: Unexpected but handled. Degraded functionality, fallbacks, retries.
-
-**ERROR**: Failures that don't crash the service. Caught exceptions, failed operations.
-
-**FATAL**: Unrecoverable errors causing shutdown.
-
-**Production default**: INFO. DEBUG creates performance problems and excessive volume.
+**Production Default**: INFO or NOTICE.
 
 ## What to Log
 
-**Application lifecycle**: Start/stop, version, configuration changes
-
-**Request boundaries**: HTTP requests (method, path, status, duration), API calls to external services
-
-**Business events**: State transitions (order created, payment processed, user registered)
-
-**Authentication events**: Login success/failure, authorization failures, token operations
-
-**Errors**: Exception type, message, stack trace, request context, user impact
-
-**Performance**: Operations exceeding thresholds, slow queries, timeouts
+- **Application Lifecycle**: Startup configurations, version hashes, clean shutdowns.
+- **Request Boundaries**: Ingress and Egress logging using `httpRequest` structure.
+- **Business Logic**: Significant state changes (transaction completed, user created).
+- **Errors**: Stack traces (formatted to be picked up by Error Reporting), exception messages.
+- **Security**: Auth failures, permission denials (exclude sensitive tokens).
 
 ## What NOT to Log
 
-**Never log**:
+- **Secrets**: Passwords, API keys, tokens, PII (Personal Identifiable Information).
+- **High Cardinality Data**: Avoid putting dynamic values in `message` string; put them in `jsonPayload`.
+- **Duplicate Errors**: Log an exception once at the boundary where it is handled.
 
-- Passwords, API keys, tokens, secrets
-- Credit card numbers, SSNs
-- Full email addresses or phone numbers (hash if needed)
-- Session tokens
-- Sensitive business data
+## Error Reporting Integration
 
-**Sanitize before logging**: Request/response bodies, query parameters, headers
+To trigger Google Cloud Error Reporting:
+
+- Log with severity `ERROR`, `CRITICAL`, `ALERT`, or `EMERGENCY`.
+- Include `stack_trace` field in the JSON payload (or `exception` field).
+- Or, ensure the `message` contains a stack trace.
+- `serviceContext`: (Optional) Object with `service` and `version` to group errors correctly.
 
 ## Context and Correlation
 
-**Generate trace ID at entry point**: Propagate through entire request lifecycle. Include in all logs as `trace_id`. Use OpenTelemetry SDK to generate W3C Trace Context compliant IDs.
+- **Trace Correlation**: Populate `logging.googleapis.com/trace` and `logging.googleapis.com/spanId` to view logs inline with traces in Cloud Trace.
+- **Service Identity**: handled automatically by the logging agent/environment (resource type `k8s_container`, `gce_instance`, etc.).
 
-**Propagate context**: Pass `trace_id`, `span_id`, `trace_flags` through function calls and async operations using OpenTelemetry Context API.
+## Best Practices
 
-**Log at boundaries**: Service entry/exit, external API calls, database operations. Use semantic convention attributes like `http.method`, `db.operation`, `rpc.method` to identify operations.
-
-## Performance
-
-**Log asynchronously**: Never block application threads on logging.
-
-**Use appropriate levels**: INFO in production. DEBUG only during troubleshooting.
-
-**Lazy evaluation**: Defer expensive operations until confirmed log level matches.
-
-**Circuit breaker**: Fail gracefully if logging unavailable. Don't crash the application.
-
-## Error Logging
-
-**Include full context**:
-
-- `exception.type`: Exception class name
-- `exception.message`: Exception message
-- `exception.stacktrace`: Complete stack trace
-- `http.*`: Request details that triggered error using OpenTelemetry HTTP semantic conventions
-- `user.id` or `enduser.id`: User context (sanitized)
-- `error.code`: Application-specific error code
-
-**Use error codes**: Set `error.code` attribute with unique identifiers for error categories. Makes searching and monitoring easier.
-
-**Log once per error**: Catch and log at appropriate level. Don't re-log as error bubbles up.
-
-**Link to traces**: Ensure `trace_id` and `span_id` are present so logs correlate with distributed traces in SigNoz.
-
-## Security
-
-**Sanitize inputs**: Remove sensitive data before logging. Use allow-list approach.
-
-**Hash PII**: If you need to correlate by user_id or session_id, hash them.
-
-**No secrets in errors**: Stack traces and error messages shouldn't expose credentials or keys.
-
-## Message Design
-
-**Be specific**: "User authentication failed" not "Error in login"
-
-**Use past tense**: "Payment processed" not "Processing payment"
-
-**Add context in fields**: Don't interpolate values into message string
-
-**Action-oriented**: Focus on what happened, not code implementation details
+- **Stdout/Stderr**: Write JSON logs directly to standard output/error. The Ops Agent or GKE Fluent Bit will ingest them.
+- **Asynchronous Logging**: Don't block the main thread.
+- **Sampling**: For high-volume debug logs, sample a percentage to reduce cost.
+- **Labels**: Use labels for dimensions you often filter by (tenant ID, region).
