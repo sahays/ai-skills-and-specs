@@ -1,10 +1,19 @@
 ---
 name: web-design
 description:
-  Design modern web applications including landing pages, feature pages, and admin dashboards. Use when designing layouts,
-  navigation, visual hierarchy, and component systems. Focuses on design patterns and principles, not form handling or
-  implementation.
+  Create distinctive, production-grade web interfaces with high design quality. Use when building landing pages, dashboards,
+  feature pages, or any web UI requiring both creative aesthetics and practical design patterns. Generates polished designs
+  that avoid generic AI aesthetics while maintaining accessibility and usability.
 ---
+
+- Design Thinking
+  - Before coding, understand context and commit to a BOLD aesthetic direction
+  - Purpose: what problem does this interface solve, who uses it, what is the context
+  - Tone: pick a clear direction - brutally minimal, maximalist, retro-futuristic, organic/natural, luxury/refined, playful, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian
+  - Constraints: technical requirements (framework, performance, accessibility, browser support)
+  - Differentiation: what makes this memorable and unforgettable, what's the one thing someone will remember
+  - Intentionality: both bold maximalism and refined minimalism work - the key is intentionality not intensity
+  - Execute with precision: choose a clear conceptual direction and implement it meticulously in every detail
 
 - Layout Systems
   - Grid-based layouts: use CSS Grid for complex layouts, Flexbox for component-level
@@ -19,20 +28,28 @@ description:
   - Adapt patterns: stack on mobile, side-by-side on desktop, hide/show elements appropriately
 
 - Typography
+  - Font selection: choose fonts that are beautiful, unique, and interesting - avoid generic fonts like Arial, Inter, Roboto, system fonts
+  - Distinctive choices: use unexpected, characterful font choices that elevate the aesthetic - pair a distinctive display font with a refined body font
   - Font pairing: maximum 2-3 fonts (one for headings, one for body, optionally one for code/data)
   - Scale: use type scale for hierarchy (1.125, 1.25, or 1.333 ratio)
   - Line height: 1.5-1.6 for body text, 1.2-1.3 for headings
   - Line length: 60-80 characters per line for optimal readability
   - Font weights: use 2-3 weights max (Regular 400, Medium 500, Bold 700)
   - Hierarchy: clear size and weight differences between heading levels
+  - Context-specific: typography should match the overall aesthetic direction and purpose
 
 - Color Systems
+  - Cohesive aesthetic: commit to a clear color direction that matches the overall tone and purpose
+  - CSS variables: use for consistency and easy theming
+  - Dominant colors with sharp accents: outperform timid, evenly-distributed palettes
+  - Avoid cliched schemes: particularly purple gradients on white backgrounds or generic AI color choices
   - Primary color: brand color, use for CTAs, links, key actions
   - Neutral grays: 7-10 shades from white to black for text, borders, backgrounds
   - Semantic colors: Success (green), Error (red), Warning (yellow), Info (blue)
   - Background layers: subtle differences between surfaces (base, raised, overlay)
   - Text contrast: WCAG AA minimum (4.5:1 for normal text, 3:1 for large text)
   - Color palette size: 5-7 primary shades, 7-10 gray shades, 5 shades per semantic color
+  - Context matters: vary between light and dark themes based on purpose, not defaults
 
 - Dark Mode
   - Design both modes together: not just inverted colors
@@ -40,6 +57,38 @@ description:
   - Reduce saturation: bright colors are harsh in dark mode, use desaturated versions
   - Text colors: use lighter grays not pure white, reduces eye strain
   - Toggle placement: user preference setting, not contextual, remember user choice
+
+- Motion and Animation
+  - High-impact moments: one well-orchestrated page load with staggered reveals creates more delight than scattered micro-interactions
+  - CSS-first: prioritize CSS animations for HTML projects (transitions, keyframes, animation-delay)
+  - Motion libraries: use Framer Motion for React, GSAP for complex sequences
+  - Staggered reveals: use animation-delay to create sequential entrance effects
+  - Scroll-triggered: animations that trigger on scroll or visibility
+  - Hover states: micro-interactions that surprise and delight
+  - Respect accessibility: honor prefers-reduced-motion, keep animations fast (200-400ms)
+  - Purposeful motion: every animation should serve the aesthetic vision or improve UX
+  - Match complexity: maximalist designs need elaborate animations, minimalist designs need subtle, refined motion
+
+- Spatial Composition and Layout
+  - Beyond grid: use unexpected layouts, asymmetry, overlapping elements, diagonal flow
+  - Grid-breaking elements: strategically break the grid for visual interest
+  - Negative space: generous whitespace OR controlled density - both can work with intentionality
+  - Layering: use z-index, overlaps, and depth to create visual interest
+  - Flow: guide the eye through the composition with intentional placement
+  - Asymmetry: balanced asymmetry often more interesting than perfect symmetry
+  - Scale variation: dramatic scale differences create hierarchy and interest
+
+- Backgrounds and Visual Details
+  - Create atmosphere: use backgrounds to create depth and mood, not just solid colors
+  - Contextual effects: effects and textures that match the overall aesthetic direction
+  - Gradient meshes: complex, multi-point gradients for organic feel
+  - Noise textures: add grain and texture for depth and sophistication
+  - Geometric patterns: repeating shapes, grids, lines for structure
+  - Layered transparencies: overlay multiple semi-transparent elements for depth
+  - Dramatic shadows: use shadows creatively, not just for elevation
+  - Decorative borders: custom borders, outlines, frames that enhance the aesthetic
+  - Custom cursors: context-specific cursors that enhance the experience
+  - Grain overlays: subtle film grain for analog warmth
 
 - Landing Page Design
   - Hero section: full viewport height or 60-70%, clear value proposition and CTA
@@ -144,6 +193,11 @@ description:
   - Forgiveness: confirmations for destructive actions, easy undo when possible
 
 - Anti-Patterns to Avoid
+  - Never use generic AI aesthetics: avoid Inter/Roboto/Arial, purple gradients on white, predictable layouts, cookie-cutter designs
+  - Never use overused font families: Inter, Roboto, Arial, system fonts unless specifically appropriate
+  - Never use cliched color schemes: particularly purple gradients, generic SaaS blue, default Material Design colors
+  - Never create predictable layouts: every design should feel custom and intentional for its context
+  - Never make all designs the same: vary themes (light/dark), fonts, aesthetics between projects
   - Never center paragraphs (hard to read)
   - Never use all caps body text (reduces readability)
   - Never sacrifice contrast for aesthetics
@@ -152,6 +206,7 @@ description:
   - Never auto-play video with sound
   - Never hide navigation on scroll (frustrating)
   - Never use too many font weights/sizes (inconsistent)
+  - Never mismatch complexity: maximalist designs need elaborate implementation, minimalist designs need precision and restraint
   - Always left-align body text
   - Always use sentence case
   - Always prioritize readability
@@ -160,3 +215,6 @@ description:
   - Always require user-initiated media playback
   - Always use persistent or show-on-scroll-up navigation
   - Always use systematic type scale
+  - Always interpret creatively: make unexpected choices that feel genuinely designed for the context
+  - Always commit fully: execute the aesthetic vision with precision in every detail
+  - Always match implementation to vision: elegant designs need elegant code, complex designs need rich implementation
