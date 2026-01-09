@@ -37,6 +37,8 @@ description:
   - Use Result and Option, avoid unwrap/expect in production
   - Use thiserror for libraries, anyhow for applications
   - Add context when propagating errors
+  - For async operations, prefer `.await.map_err(|e| ...)` over `.await?` to provide error context
+  - Never silently ignore errors; always handle or log them appropriately
 
 - Key Patterns
 
